@@ -1,19 +1,46 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Excavation Site Visualization</title>
-  <style>
-    body { margin: 0; overflow: hidden; }
-    #slider-container { position: absolute; top: 20px; width: 100%; text-align: center; }
-    #slider { width: 80%; }
-  </style>
-</head>
-<body>
-  <div id="slider-container">
-    <input type="range" id="slider" min="0" max="9" value="0">
-  </div>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Wizualizacja Wykopalisk</title>
+    <style>
+      /* ZMIANA: Dodano podstawowe style dla lepszego wyglądu */
+      body {
+        margin: 0;
+        overflow: hidden;
+        font-family: sans-serif;
+        color: white;
+      }
+      #info-container {
+        position: absolute;
+        top: 20px;
+        width: 100%;
+        text-align: center;
+        z-index: 10;
+        /* Dodano cień, aby tekst był czytelny na jasnym tle */
+        text-shadow: 1px 1px 2px black;
+      }
+      #slider {
+        width: 80%;
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="info-container">
+      <h3 id="date-display">Ładowanie...</h3>
+      <input type="range" id="slider" min="0" max="1" value="0" />
+    </div>
 
-  <script type="module" src="main.js"></script>
-</body>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.172.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.172.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <script type="module" src="main.js"></script>
+  </body>
 </html>
