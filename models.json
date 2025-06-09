@@ -1,4 +1,14 @@
 [
-  "horse_head_1k/horse_head_1k.gltf",
-  "lion_head_1k/lion_head_1k.gltf"
+  {
+    "file": "01-horse_head_1k/horse_head_1k.gltf",
+    "displayName": "Dzień 1 - głowa konia"
+  },
+  {
+    "file": "02-lion_head_1k/lion_head_1k.gltf",
+    "displayName": "Dzień 2 - głowa lwa"
+  },
+  {
+    "file": "03-bull_head_1k/bull_head_1k.gltf",
+    "displayName": "Dzień 3 - głowa byka"
+  }
 ]
