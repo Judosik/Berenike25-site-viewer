@@ -3,17 +3,18 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
 
-// --- Zmienne globalne ---
+// === Global variables ===
 let scene, camera, renderer, controls;
 const models = [];
-let modelDisplayNames = []; // POPRAWKA: Prawidłowa nazwa zmiennej
-let currentModelIndex = 0;
+let modelEntries = [];
+const separationDistance = 0.5; // adjust layer spacing (in your model units)
 
-// --- Inicjalizacja ---
+// === Init ===
 init();
 
 function init() {
   scene = new THREE.Scene();
+
   camera = new THREE.PerspectiveCamera(
     60,
     window.innerWidth / window.innerHeight,
@@ -31,18 +32,20 @@ function init() {
 
   document.body.appendChild(renderer.domElement);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-  scene.add(ambientLight);
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
-  directionalLight.position.set(50, 50, 50).normalize();
-  scene.add(directionalLight);
+  // === Lights ===
+  scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+  const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+  dirLight.position.set(50, 50, 50).normalize();
+  scene.add(dirLight);
 
+  // === Controls ===
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
 
+  // === Environment (HDRI) ===
   new RGBELoader()
     .setPath("assets/")
-    .load("minedump_flats_4k.hdr", function (texture) {
+    .load("minedump_flats_4k.hdr", (texture) => {
       texture.mapping = THREE.EquirectangularReflectionMapping;
       scene.background = texture;
       scene.environment = texture;
@@ -53,19 +56,19 @@ function init() {
   window.addEventListener("resize", onWindowResize);
 }
 
+// === Load models from JSON ===
 async function loadModels() {
   const loader = new GLTFLoader();
   const dateDisplay = document.getElementById("date-display");
+  const checkboxContainer = document.getElementById("checkboxContainer");
 
   try {
     const response = await fetch("models.json");
-    const modelEntries = await response.json();
+    modelEntries = await response.json();
 
     modelEntries.sort((a, b) => a.file.localeCompare(b.file));
 
-    // Teraz ta linijka będzie działać poprawnie
-    modelDisplayNames = modelEntries.map((entry) => entry.displayName);
-
+    // Load all models in parallel
     const loadingPromises = modelEntries.map((entry) =>
       loader.loadAsync(`models/${entry.file}`)
     );
@@ -74,60 +77,68 @@ async function loadModels() {
 
     loadedGltfs.forEach((gltf, index) => {
       const model = gltf.scene;
-      models[index] = model;
-      model.visible = index === 0;
+      model.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = child.receiveShadow = true;
+        }
+      });
+      model.userData.index = index;
+      model.visible = true;
       scene.add(model);
+      models.push(model);
+
+      // === UI: create checkbox for this layer ===
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.id = `layer${index}`;
+      checkbox.checked = true;
+      checkbox.addEventListener("change", () => {
+        model.visible = checkbox.checked;
+      });
+
+      const label = document.createElement("label");
+      label.htmlFor = checkbox.id;
+      label.textContent = modelEntries[index].displayName || `Layer ${index + 1}`;
+
+      checkboxContainer.appendChild(checkbox);
+      checkboxContainer.appendChild(label);
     });
 
-    setupSlider(modelEntries.length);
+    setupSlider();
     focusCameraOnScene();
-    updateDateDisplay(0);
+    dateDisplay.textContent = "Wizualizacja warstw gotowa.";
   } catch (error) {
     console.error("Błąd podczas ładowania modeli:", error);
     dateDisplay.textContent = "Błąd ładowania modeli!";
   }
 }
 
-function updateDateDisplay(index) {
-  const dateDisplay = document.getElementById("date-display");
-  if (modelDisplayNames[index]) {
-    dateDisplay.textContent = modelDisplayNames[index];
-  }
-}
-
-function setupSlider(modelCount) {
+// === Slider logic (layer separation) ===
+function setupSlider() {
   const slider = document.getElementById("slider");
   slider.min = 0;
-  slider.max = modelCount - 1;
+  slider.max = 1;
+  slider.step = 0.01;
   slider.value = 0;
 
   slider.addEventListener("input", (event) => {
-    const index = parseInt(event.target.value);
-    showModel(index);
-    updateDateDisplay(index);
+    const value = parseFloat(event.target.value);
+    updateLayerPositions(value);
   });
 }
 
-function showModel(index) {
-  if (currentModelIndex === index) return;
-
-  if (models[currentModelIndex]) {
-    models[currentModelIndex].visible = false;
-  }
-  if (models[index]) {
-    models[index].visible = true;
-  }
-
-  currentModelIndex = index;
+// === Move layers apart based on slider ===
+function updateLayerPositions(value) {
+  models.forEach((model, i) => {
+    model.position.y = i * value * separationDistance;
+  });
 }
 
+// === Auto-fit camera to scene ===
 function focusCameraOnScene() {
   const box = new THREE.Box3();
-
   for (const model of models) {
-    if (model) {
-      box.expandByObject(model);
-    }
+    if (model) box.expandByObject(model);
   }
 
   const size = new THREE.Vector3();
@@ -148,6 +159,7 @@ function focusCameraOnScene() {
   controls.update();
 }
 
+// === Render loop ===
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
